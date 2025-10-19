@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-chatbot-sa
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::206409480438:role/SqlChatbotBedrockRole
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-chatbot
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8501
+  selector:
+    app: sql-chatbot
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-chatbot
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 2
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: sql-chatbot
+  template:
+    metadata:
+      labels:
+        app: sql-chatbot
+    spec:
+      serviceAccountName: sql-chatbot-sa
+      containers:
+        - name: sql-chatbot
+          image: CONTAINER_IMAGE
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8501
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
