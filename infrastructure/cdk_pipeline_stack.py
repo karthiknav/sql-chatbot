@@ -68,8 +68,8 @@ class SqlChatbotPipelineStack(Stack):
         )
         
         source = CodePipelineSource.connection(
-            "karthiknav/sqlchatbot",
-            "main",
+            "karthiknav/sql-chatbot",
+            "master",
             connection_arn="arn:aws:codeconnections:us-east-1:206409480438:connection/c12ba6ca-3d36-4ae9-8a2e-51fa31e27866"
         )
         
