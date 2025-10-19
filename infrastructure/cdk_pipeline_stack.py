@@ -22,11 +22,11 @@ class SqlChatbotPipelineStack(Stack):
             self, "SqlChatbotBedrockRole",
             role_name="SqlChatbotBedrockRole",
             assumed_by=iam.FederatedPrincipal(
-                f"arn:aws:iam::{self.account}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F",
+                f"arn:aws:iam::{self.account}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154",
                 {
                     "StringEquals": {
-                        "oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F:sub": "system:serviceaccount:default:sql-chatbot-sa",
-                        "oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F:aud": "sts.amazonaws.com"
+                        "oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154:sub": "system:serviceaccount:default:sql-chatbot-sa",
+                        "oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154:aud": "sts.amazonaws.com"
                     }
                 },
                 "sts:AssumeRoleWithWebIdentity"
