@@ -80,8 +80,7 @@ class SqlChatbotPipelineStack(Stack):
                 "Synth",
                 input=source,
                 commands=["pip install aws-cdk-lib",
-                          "npm install -g aws-cdk", "cdk synth"],
-                primary_output_directory="../cdk.out"
+                          "npm install -g aws-cdk", "cdk synth"]
             )
         )
         
