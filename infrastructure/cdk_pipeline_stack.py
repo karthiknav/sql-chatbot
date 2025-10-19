@@ -22,11 +22,11 @@ class SqlChatbotPipelineStack(Stack):
             self, "SqlChatbotBedrockRole",
             role_name="SqlChatbotBedrockRole",
             assumed_by=iam.FederatedPrincipal(
-                f"arn:aws:iam::{self.account}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/YOUR_OIDC_ID",
+                f"arn:aws:iam::{self.account}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F",
                 {
                     "StringEquals": {
-                        "oidc.eks.us-east-1.amazonaws.com/id/YOUR_OIDC_ID:sub": "system:serviceaccount:default:sql-chatbot-sa",
-                        "oidc.eks.us-east-1.amazonaws.com/id/YOUR_OIDC_ID:aud": "sts.amazonaws.com"
+                        "oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F:sub": "system:serviceaccount:default:sql-chatbot-sa",
+                        "oidc.eks.us-east-1.amazonaws.com/id/33D0E34C3DBE23DD41EBD45F3478897F:aud": "sts.amazonaws.com"
                     }
                 },
                 "sts:AssumeRoleWithWebIdentity"
@@ -79,7 +79,8 @@ class SqlChatbotPipelineStack(Stack):
             synth=ShellStep(
                 "Synth",
                 input=source,
-                commands=["npm install -g aws-cdk", "cdk synth"]
+                commands=["npm install -g aws-cdk", "cdk synth"],
+                primary_output_directory="../cdk.out"
             )
         )
         
@@ -103,7 +104,7 @@ class SqlChatbotPipelineStack(Stack):
                     "ECR_REGISTRY": codebuild.BuildEnvironmentVariable(value="206409480438.dkr.ecr.us-east-1.amazonaws.com"),
                     "ECR_REPOSITORY": codebuild.BuildEnvironmentVariable(value=ecr_repo.repository_name),
                     "AWS_REGION": codebuild.BuildEnvironmentVariable(value=self.region),
-                    "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value="eks-cdk-demo"),
+                    "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value="eks-cdk-sqlchatbot"),
                     "EKS_KUBECTL_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=eks_kubectl_role.role_arn)
                 }
             ),

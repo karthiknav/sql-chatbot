@@ -1,2 +1,4 @@
 env2
 .env.local
+cdk.out
+**/__pycache__/
