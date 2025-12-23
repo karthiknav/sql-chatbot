@@ -9,3 +9,4 @@ sqlalchemy==2.0.21
 psycopg2-binary
 aws-cdk-lib>=2.0.0
 constructs
+aws-cdk.lambda-layer-kubectl-v31
