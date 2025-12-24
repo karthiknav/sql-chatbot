@@ -1,3 +1,4 @@
+langchain
 langchain-core
 langchain-community
 langchain-openai
@@ -5,7 +6,7 @@ langchain-aws
 streamlit
 python-dotenv==1.0.0
 boto3
-sqlalchemy==2.0.21
+sqlalchemy==2.0.40
 psycopg2-binary
 aws-cdk-lib>=2.0.0
 constructs

@@ -32,7 +32,7 @@ python -m venv venv
 
 # Activate virtual environment
 # On Windows:
-venv\Scripts\activate
+source venv/Scripts/activate
 # On macOS/Linux:
 source venv/bin/activate
 ```
@@ -69,6 +69,116 @@ AWS_REGION=us-east-1
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=your_langchain_api_key
 ```
+
+## Infrastructure Deployment
+
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- AWS CDK installed (`npm install -g aws-cdk`)
+- Python 3.8+ and pip installed
+
+### CDK Deployment Steps
+
+Deploy the infrastructure stacks in the following order:
+
+#### 1. VPC Stack (First)
+```bash
+cd infrastructure
+cdk deploy VpcStack
+```
+Creates the network foundation with public and private subnets.
+
+#### 2. RDS Stack (Second)
+```bash
+cdk deploy RdsStack
+```
+Creates PostgreSQL database in private subnets. Depends on VPC stack.
+
+#### 3. EKS Stack (Third)
+```bash
+cdk deploy EksStack
+```
+Creates EKS cluster and worker nodes in private subnets. Depends on VPC stack.
+
+#### 4. Pipeline Stack (Last)
+```bash
+cdk deploy SqlChatbotPipelineStack
+```
+Creates CI/CD pipeline that builds and deploys the application to EKS.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        VPC                                  │
+│  ┌─────────────────┐              ┌─────────────────┐      │
+│  │  Public Subnet  │              │  Public Subnet  │      │
+│  │     AZ-1a       │              │     AZ-1b       │      │
+│  │                 │              │                 │      │
+│  │  - NAT Gateway  │              │  - ALB          │      │
+│  │  - Internet GW  │              │                 │      │
+│  └─────────────────┘              └─────────────────┘      │
+│           │                                │               │
+│  ┌─────────────────┐              ┌─────────────────┐      │
+│  │ Private Subnet  │              │ Private Subnet  │      │
+│  │     AZ-1a       │              │     AZ-1b       │      │
+│  │                 │              │                 │      │
+│  │ - EKS Nodes     │              │ - EKS Nodes     │      │
+│  │ - RDS Primary   │              │ - RDS Standby   │      │
+│  │                 │              │                 │      │
+│  └─────────────────┘              └─────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Traffic Flow
+- **Internet** → **ALB** (public subnets) → **EKS Pods** (private subnets) → **RDS** (private subnets)
+- **EKS Pods** → **AWS Bedrock** (via NAT Gateway)
+
+## Database Setup
+
+### Manual Database Loading
+
+Since the RDS instance is in private subnets, you'll need to use an EC2 instance (Bastion Host) in the public subnet to load the sample DVD rental database.
+
+#### 1. Launch EC2 Instance
+- Launch an EC2 instance (Amazon Linux 2023) in one of the public subnets of the VPC created through VpcStack
+- Attach IAM role: `arn:aws:iam::206409480438:role/EC2toS3FullAccess`
+- SSH into the instance and install PostgreSQL client tools:
+
+```bash
+# Update system packages
+sudo dnf update -y
+
+# Install PostgreSQL client tools
+sudo dnf install -y postgresql15
+
+# Download the DVD rental sample database from S3
+aws s3 cp s3://dvdrental-tar-nav/dvdrental.tar /tmp/dvdrental.tar
+
+# Verify file is downloaded
+ls -la /tmp/dvdrental.tar
+```
+
+#### 2. Connect to RDS and Load Sample Data
+
+```bash
+# Set password as environment variable
+export PGPASSWORD='passowrd'
+
+# Connect to PostgreSQL and create dvdrental database
+psql -h rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d postgres -c "CREATE DATABASE dvdrental;"
+
+# Restore the sample database from tar file
+pg_restore -h \
+rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -p 5432 \
+-U postgres -d dvdrental -v \
+/tmp/dvdrental.tar
+
+# Verify the database was loaded successfully
+psql -h rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d dvdrental -c "\dt"
+```
+
+**Note**: Replace the RDS endpoint with your actual RDS endpoint from the CloudFormation outputs.
 
 ## Running the Application
 
@@ -129,3 +239,5 @@ The application is configured to work with a DVD rental database containing tabl
 ```bash
 deactivate
 ```
+
+

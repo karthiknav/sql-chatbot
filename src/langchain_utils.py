@@ -1,26 +1,73 @@
 import os
 from dotenv import load_dotenv
 import re
+import boto3
+import json
 
-# Load .env.local first (higher priority), then .env as fallback
-load_dotenv('.env.local')
-load_dotenv('.env')
 
-db_user = os.getenv("db_user")
-db_password = os.getenv("db_password")
-db_host = os.getenv("db_host")
-db_name = os.getenv("db_name")
+load_dotenv('../.env.local')
+load_dotenv('../.env')
+
+# Debug all environment variables starting with DB_
+print("DEBUG: Environment variables starting with DB_:")
+for key, value in os.environ.items():
+    if key.startswith('DB_'):
+        print(f"  {key} = {value}")
+
+def get_db_credentials():
+    """Get database credentials from AWS Secrets Manager, fallback to .env"""
+    try:
+        # Try to get from Secrets Manager first
+        secret_arn = os.getenv("DB_SECRET_ARN")
+        print(f"DEBUG: secret_arn = {secret_arn}")
+        
+        if secret_arn:
+            client = boto3.client('secretsmanager', region_name=os.getenv("AWS_REGION", "us-east-1"))
+            response = client.get_secret_value(SecretId=secret_arn)
+            secret = json.loads(response['SecretString'])
+            print(f"DEBUG: Retrieved secret = {secret}")
+            
+            credentials = {
+                'user': secret['username'],
+                'password': secret['password'],
+                'host': secret['host'],
+                'name': secret['dbname']
+            }
+            print(f"DEBUG: Parsed credentials = {credentials}")
+            return credentials
+    except Exception as e:
+        print(f"Could not retrieve from Secrets Manager: {e}")
+        print("Falling back to .env file...")
+    
+    # Fallback to .env file
+    fallback_creds = {
+        'user': os.getenv("db_user"),
+        'password': os.getenv("db_password"),
+        'host': os.getenv("db_host"),
+        'name': os.getenv("db_name")
+    }
+    print(f"DEBUG: Fallback credentials = {fallback_creds}")
+    return fallback_creds
+
+# Get database credentials
+db_creds = get_db_credentials()
+db_user = db_creds['user']
+db_password = db_creds['password']
+db_host = db_creds['host']
+db_name = db_creds['name']
 
 # AWS credentials will be loaded automatically from ~/.aws/credentials
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 
-from langchain_community.utilities.sql_database import SQLDatabase
-from langchain.chains import create_sql_query_chain
+
+
 from langchain_aws import ChatBedrock
+from langchain_community.utilities.sql_database import SQLDatabase
+from langchain_classic.chains import create_sql_query_chain
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
-from langchain.memory import ChatMessageHistory
+from langchain_classic.memory import ChatMessageHistory
 
 from operator import itemgetter
 

@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
 from operator import itemgetter
-from langchain.chains.openai_tools import create_extraction_chain_pydantic
+from langchain_classic.chains.openai_tools import create_extraction_chain_pydantic
 from pydantic import BaseModel, Field
 from langchain_aws import ChatBedrock
-from langchain.output_parsers import PydanticOutputParser
+from langchain_classic.output_parsers import PydanticOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
