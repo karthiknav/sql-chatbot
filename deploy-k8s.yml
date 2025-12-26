@@ -10,24 +10,45 @@ kind: Service
 metadata:
   name: sql-chatbot
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     - port: 80
       targetPort: 8501
   selector:
     app: sql-chatbot
 ---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sql-chatbot-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sql-chatbot
+                port:
+                  number: 80
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sql-chatbot
 spec:
-  replicas: 3
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 2
-      maxSurge: 2
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: sql-chatbot
