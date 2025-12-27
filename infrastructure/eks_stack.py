@@ -47,18 +47,19 @@ class EksStack(Stack):
         )
         
         # Create service account role for Bedrock access
-        bedrock_service_account = self.cluster.add_service_account(
+        pod_service_account = self.cluster.add_service_account(
             "sql-chatbot-sa",
             name="sql-chatbot-sa",
             namespace="default"
         )
         
         # Add Bedrock permissions to service account
-        bedrock_service_account.role.add_to_principal_policy(
+        pod_service_account.role.add_to_principal_policy(
             iam.PolicyStatement(
                 actions=[
                     "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream"
+                    "bedrock:InvokeModelWithResponseStream",
+                    "secretsmanager:*"
                 ],
                 resources=["*"],
                 effect=iam.Effect.ALLOW
@@ -68,7 +69,7 @@ class EksStack(Stack):
         # Export service account role ARN
         CfnOutput(
             self, "BedrockServiceAccountRoleArn",
-            value=bedrock_service_account.role.role_arn,
+            value=pod_service_account.role.role_arn,
             export_name="SqlChatbot-BedrockServiceAccountRoleArn"
         )
     

@@ -16,6 +16,12 @@ A Natural Language to SQL (NL2SQL) chatbot built with LangChain, AWS Bedrock, an
 - PostgreSQL database
 - AWS account with Bedrock access
 - AWS credentials configured
+- **S3 Bucket**: `s3://dvdrental-tar-nav/dvdrental.tar` with DVD rental sample database
+- **IAM Roles**:
+  - `arn:aws:iam::206409480438:role/EKSKubectlRole` - For EKS cluster access and management. This role is used by CDK to deploy the EKS cluster and by CodeBuild for CI/CD operations. It has `eks:Describe*` permissions and allows the AWS account root to assume it, enabling both infrastructure deployment and kubectl access to manage the cluster.
+  - `arn:aws:iam::206409480438:role/EC2toS3FullAccess` - For EC2 bastion host S3 access
+- **AWS Secrets Manager**: RDS credentials stored in Secrets Manager
+- **EKS Cluster**: Named `eks-cdk-sqlchatbot` in `us-east-1` region
 
 ## Installation
 
@@ -166,19 +172,64 @@ ls -la /tmp/dvdrental.tar
 export PGPASSWORD='passowrd'
 
 # Connect to PostgreSQL and create dvdrental database
-psql -h rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d postgres -c "CREATE DATABASE dvdrental;"
+psql -h rdsstack-postgresdatabase0a8a7373-5mk5e7kmnude.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d postgres -c "CREATE DATABASE dvdrental;"
 
 # Restore the sample database from tar file
 pg_restore -h \
-rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -p 5432 \
+rdsstack-postgresdatabase0a8a7373-dd4yeb7eu9g2.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -p 5432 \
 -U postgres -d dvdrental -v \
 /tmp/dvdrental.tar
 
 # Verify the database was loaded successfully
-psql -h rdsstack-postgresdatabase0a8a7373-5imbpzdgvcy5.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d dvdrental -c "\dt"
+psql -h rdsstack-postgresdatabase0a8a7373-dd4yeb7eu9g2.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d dvdrental -c "\dt"
 ```
 
 **Note**: Replace the RDS endpoint with your actual RDS endpoint from the CloudFormation outputs.
+
+## EKS Cluster Management
+
+### Configure kubectl for EKS Cluster
+
+After deploying the EKS stack, configure kubectl to connect to your EKS cluster:
+
+```bash
+aws eks update-kubeconfig --region us-east-1 --name eks-cdk-sqlchatbot --role-arn arn:aws:iam::206409480438:role/EKSKubectlRole
+```
+
+**Note**: The `--role-arn` parameter is required because the EKS cluster was deployed using this specific IAM role. By assuming this role, kubectl gains the necessary permissions to access and manage the cluster resources.
+
+**Why this command is helpful:**
+- **Pod Management**: View running pods, their status, and resource usage
+- **Log Access**: Stream real-time logs from application pods for debugging
+- **Troubleshooting**: Diagnose deployment issues and monitor application health
+- **Scaling**: Manually scale deployments up or down as needed
+
+### Common kubectl Commands
+
+### Common kubectl Commands
+
+```bash
+# View all pods with their labels
+kubectl get pods --show-labels
+
+# View logs from all pods with app=sql-chatbot label
+kubectl logs -n default -l app=sql-chatbot
+
+# Tail logs from all pods with app=sql-chatbot label (real-time)
+kubectl logs -n default -l app=sql-chatbot -f
+
+# View all pods in the cluster
+kubectl get pods -A
+
+# Describe pod details and events
+kubectl describe pod <pod-name> -n default
+
+# View services and ingress
+kubectl get svc,ingress -n default
+
+# print environment variables of pod
+kubectl exec <podname> -- printenv
+```
 
 ## Running the Application
 
