@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_codepipeline_actions as codepipeline_actions,
     aws_ecr as ecr,
     aws_iam as iam,
+    Fn
 )
 from aws_cdk.pipelines import CodePipeline, CodePipelineSource, ShellStep
 from constructs import Construct
@@ -17,35 +18,9 @@ class SqlChatbotPipelineStack(Stack):
         existing_role_arn = "arn:aws:iam::206409480438:role/EKSKubectlRole"
         eks_kubectl_role = iam.Role.from_role_arn(self, "EksKubeCtlRole", existing_role_arn)
         
-        # IAM Role for EKS Service Account with Bedrock permissions
-        eks_service_account_role = iam.Role(
-            self, "SqlChatbotBedrockRole",
-            role_name="SqlChatbotBedrockRole",
-            assumed_by=iam.FederatedPrincipal(
-                f"arn:aws:iam::{self.account}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154",
-                {
-                    "StringEquals": {
-                        "oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154:sub": "system:serviceaccount:default:sql-chatbot-sa",
-                        "oidc.eks.us-east-1.amazonaws.com/id/4C46B3EB0706B5C0776AA44804351154:aud": "sts.amazonaws.com"
-                    }
-                },
-                "sts:AssumeRoleWithWebIdentity"
-            ),
-            inline_policies={
-                "BedrockPolicy": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            actions=[
-                                "bedrock:InvokeModel",
-                                "bedrock:InvokeModelWithResponseStream"
-                            ],
-                            resources=["*"],
-                            effect=iam.Effect.ALLOW
-                        )
-                    ]
-                )
-            }
-        )
+        # Import cluster name and service account role from EKS stack
+        cluster_name = Fn.import_value("SqlChatbot-ClusterName")
+        bedrock_role_arn = Fn.import_value("SqlChatbot-BedrockServiceAccountRoleArn")
         
         codebuild_role = iam.Role(
             self, "CodeBuildRole",
@@ -104,8 +79,9 @@ class SqlChatbotPipelineStack(Stack):
                     "ECR_REGISTRY": codebuild.BuildEnvironmentVariable(value="206409480438.dkr.ecr.us-east-1.amazonaws.com"),
                     "ECR_REPOSITORY": codebuild.BuildEnvironmentVariable(value=ecr_repo.repository_name),
                     "AWS_REGION": codebuild.BuildEnvironmentVariable(value=self.region),
-                    "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value="eks-cdk-sqlchatbot"),
-                    "EKS_KUBECTL_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=eks_kubectl_role.role_arn)
+                    "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value=cluster_name),
+                    "EKS_KUBECTL_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=eks_kubectl_role.role_arn),
+                    "BEDROCK_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=bedrock_role_arn)
                 }
             ),
             build_spec=codebuild.BuildSpec.from_source_filename("buildspec.yml"),

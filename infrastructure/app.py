@@ -18,7 +18,8 @@ rds_stack.add_dependency(vpc_stack)
 eks_stack = EksStack(app, "EksStack", vpc=vpc_stack.vpc)
 eks_stack.add_dependency(vpc_stack)
 
-# Keep existing pipeline stack
-SqlChatbotPipelineStack(app, "SqlChatbotPipelineStack")
+# Update pipeline stack to depend on EKS stack
+pipeline_stack = SqlChatbotPipelineStack(app, "SqlChatbotPipelineStack")
+pipeline_stack.add_dependency(eks_stack)
 
 app.synth()
