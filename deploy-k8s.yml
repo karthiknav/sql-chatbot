@@ -1,4 +1,12 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-chatbot-config
+data:
+  AWS_REGION: "us-east-1"
+  DB_SECRET_ARN: "arn:aws:secretsmanager:us-east-1:206409480438:secret:RdsStackPostgresDatabaseSec-2lEojiDqtXrV-4GVpwu"
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: sql-chatbot
@@ -54,6 +62,9 @@ spec:
       containers:
         - name: sql-chatbot
           image: CONTAINER_IMAGE
+          envFrom:
+            - configMapRef:
+                name: sql-chatbot-config
           volumeMounts:
             - name: tmp-volume
               mountPath: /tmp
