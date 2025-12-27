@@ -9,8 +9,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-load_dotenv('../.env.local')
-load_dotenv('../.env')
+#load_dotenv('../.env.local')
+#load_dotenv('../.env')
 
 # Debug all environment variables starting with DB_
 logger.info("Environment variables starting with DB_:")
