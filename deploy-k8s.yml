@@ -65,6 +65,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: sql-chatbot-config
+          env:
+            - name: STREAMLIT_CONFIG_DIR
+              value: "/tmp/.streamlit"
           volumeMounts:
             - name: tmp-volume
               mountPath: /tmp
