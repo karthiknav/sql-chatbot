@@ -3,29 +3,33 @@ from dotenv import load_dotenv
 import re
 import boto3
 import json
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 load_dotenv('../.env.local')
 load_dotenv('../.env')
 
 # Debug all environment variables starting with DB_
-print("DEBUG: Environment variables starting with DB_:")
+logger.info("Environment variables starting with DB_:")
 for key, value in os.environ.items():
     if key.startswith('DB_'):
-        print(f"  {key} = {value}")
+        logger.info(f"  {key} = {value}")
 
 def get_db_credentials():
     """Get database credentials from AWS Secrets Manager, fallback to .env"""
     try:
         # Try to get from Secrets Manager first
         secret_arn = os.getenv("DB_SECRET_ARN")
-        print(f"DEBUG: secret_arn = {secret_arn}")
+        logger.info(f"secret_arn = {secret_arn}")
         
         if secret_arn:
             client = boto3.client('secretsmanager', region_name=os.getenv("AWS_REGION", "us-east-1"))
             response = client.get_secret_value(SecretId=secret_arn)
             secret = json.loads(response['SecretString'])
-            print(f"DEBUG: Retrieved secret = {secret}")
+            logger.info(f"Retrieved secret = {secret}")
             
             credentials = {
                 'user': secret['username'],
@@ -33,11 +37,11 @@ def get_db_credentials():
                 'host': secret['host'],
                 'name': secret['dbname']
             }
-            print(f"DEBUG: Parsed credentials = {credentials}")
+            logger.info(f"Parsed credentials = {credentials}")
             return credentials
     except Exception as e:
-        print(f"Could not retrieve from Secrets Manager: {e}")
-        print("Falling back to .env file...")
+        logger.info(f"Could not retrieve from Secrets Manager: {e}")
+        logger.info("Falling back to .env file...")
     
     # Fallback to .env file
     fallback_creds = {
@@ -46,7 +50,7 @@ def get_db_credentials():
         'host': os.getenv("db_host"),
         'name': os.getenv("db_name")
     }
-    print(f"DEBUG: Fallback credentials = {fallback_creds}")
+    logger.info(f"Fallback credentials = {fallback_creds}")
     return fallback_creds
 
 # Get database credentials
@@ -100,7 +104,13 @@ def clean_sql_query(query_text):
     return query_text.strip()
 
 def _create_chain():
-    print("Creating chain")
+    logger.info("Creating chain")
+    db_creds = get_db_credentials()
+    db_user = db_creds['user']
+    db_password = db_creds['password']
+    db_host = db_creds['host']
+    db_name = db_creds['name']
+    logger.info(f"db_host = {db_host}") 
     db = SQLDatabase.from_uri(f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}")    
     llm = ChatBedrock(
         model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
@@ -133,6 +143,9 @@ def create_history(messages):
     return history
 
 def invoke_chain(question,messages):
+    logger.info("About to call get_db_credentials()")
+    db_creds = get_db_credentials()
+    logger.info(f"get_db_credentials() returned: {db_creds}")
     chain = get_chain()
     history = create_history(messages)
     response = chain.invoke({
@@ -148,26 +161,26 @@ def invoke_chain(question,messages):
 def main():
     """Debug method to test components step by step"""
     try:
-        print("=== Testing Database Connection ===")
+        logger.info("=== Testing Database Connection ===")
         db = SQLDatabase.from_uri(f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}")
-        print(f"✓ Database connected")
-        print(f"Tables: {db.get_usable_table_names()}")
+        logger.info("✓ Database connected")
+        logger.info(f"Tables: {db.get_usable_table_names()}")
         
-        print("\n=== Testing LLM Connection ===")
+        logger.info("=== Testing LLM Connection ===")
         llm = ChatBedrock(
             model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
             region_name=AWS_REGION,
             model_kwargs={"temperature": 0}
         )
         test_response = llm.invoke("Hello")
-        print(f"✓ LLM connected: {test_response.content[:50]}...")
+        logger.info(f"✓ LLM connected: {test_response.content[:50]}...")
         
-        print("\n=== Testing Full Chain ===")
+        logger.info("=== Testing Full Chain ===")
         response = invoke_chain("How many customers do we have?", [])
-        print(f"✓ Chain executed: {response[:100]}...")
+        logger.info(f"✓ Chain executed: {response[:100]}...")
         
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
 

@@ -68,6 +68,8 @@ spec:
           env:
             - name: STREAMLIT_CONFIG_DIR
               value: "/tmp/.streamlit"
+            - name: HOME
+              value: "/tmp"
           volumeMounts:
             - name: tmp-volume
               mountPath: /tmp
