@@ -24,7 +24,7 @@ class SqlChatbotPipelineStack(Stack):
         pod_role_arn = Fn.import_value("SqlChatbot-PodServiceAccountRoleArn")
         
         # Import DB secret ARN from RDS stack
-        db_secret_arn = Fn.import_value("SqlChatbot-DatabaseSecretArn")
+        db_secret_arn = Fn.import_value("SqlChatbot-DbSecretArn")
         
         codebuild_role = iam.Role(
             self, "CodeBuildRole",
