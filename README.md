@@ -17,11 +17,7 @@ A Natural Language to SQL (NL2SQL) chatbot built with LangChain, AWS Bedrock, an
 - AWS account with Bedrock access
 - AWS credentials configured
 - **S3 Bucket**: `s3://dvdrental-tar-nav/dvdrental.tar` with DVD rental sample database
-- **IAM Roles**:
-  - `arn:aws:iam::206409480438:role/EKSKubectlRole` - For EKS cluster access and management. This role is used by CDK to deploy the EKS cluster and by CodeBuild for CI/CD operations. It has `eks:Describe*` permissions and allows the AWS account root to assume it, enabling both infrastructure deployment and kubectl access to manage the cluster.
-  - `arn:aws:iam::206409480438:role/EC2toS3FullAccess` - For EC2 bastion host S3 access
-- **AWS Secrets Manager**: RDS credentials stored in Secrets Manager
-- **EKS Cluster**: Named `eks-cdk-sqlchatbot` in `us-east-1` region
+- **IAM Role**: `arn:aws:iam::206409480438:role/EC2toS3FullAccess` - For EC2 bastion host S3 access
 
 ## Installation
 
@@ -85,6 +81,10 @@ LANGCHAIN_API_KEY=your_langchain_api_key
 
 ### Cloud Deployment
 
+**IAM Stack**: The infrastructure includes an IAM stack that creates necessary roles:
+- **EKSKubectlRole**: Enables CodeBuild to deploy and manage EKS clusters during CI/CD operations
+- **Pod Service Account Policy**: Provides IRSA (IAM Roles for Service Accounts) permissions for pods to access AWS Bedrock and Secrets Manager
+
 #### Quick Deploy All Stacks
 ```bash
 cdk deploy --all --require-approval never
@@ -97,31 +97,37 @@ cdk destroy --all --force
 ```
 Removes all infrastructure resources in reverse dependency order without confirmation prompts.
 
-**Note**: The `app.py` file automatically handles stack dependencies, ensuring VPC is created first, followed by RDS and EKS (which depend on VPC), and finally the Pipeline stack. This eliminates the need to deploy stacks individually in a specific order.
+**Note**: The `app.py` file automatically handles stack dependencies, ensuring IAM stack is created first, followed by VPC, then RDS and EKS (which depend on VPC and IAM), and finally the Pipeline stack. This eliminates the need to deploy stacks individually in a specific order.
 
 ### Individual Stack Deployment (Optional)
 
 If you prefer to deploy stacks individually:
 
-#### 1. VPC Stack (First)
+#### 1. IAM Stack (First)
+```bash
+cdk deploy IamStack
+```
+Creates necessary IAM roles and policies for EKS and pod access.
+
+#### 2. VPC Stack (Second)
 ```bash
 cdk deploy VpcStack
 ```
 Creates the network foundation with public and private subnets.
 
-#### 2. RDS Stack (Second)
+#### 3. RDS Stack (Third)
 ```bash
 cdk deploy RdsStack
 ```
 Creates PostgreSQL database in private subnets. Depends on VPC stack.
 
-#### 3. EKS Stack (Third)
+#### 4. EKS Stack (Fourth)
 ```bash
 cdk deploy EksStack
 ```
-Creates EKS cluster and worker nodes in private subnets. Depends on VPC stack.
+Creates EKS cluster and worker nodes in private subnets. Depends on VPC and IAM stacks.
 
-#### 4. Pipeline Stack (Last)
+#### 5. Pipeline Stack (Last)
 ```bash
 cdk deploy SqlChatbotPipelineStack
 ```
@@ -155,6 +161,42 @@ Creates CI/CD pipeline that builds and deploys the application to EKS.
 - **Internet** → **ALB** (public subnets) → **EKS Pods** (private subnets) → **RDS** (private subnets)
 - **EKS Pods** → **AWS Bedrock** (via NAT Gateway)
 
+## CI/CD Pipeline
+
+### BuildSpec Configuration
+
+The `buildspec.yml` file defines the CI/CD pipeline build process:
+
+#### Build Phases:
+1. **Pre-build**: 
+   - Authenticates with Amazon ECR
+   - Sets up Docker image tags using commit hash
+
+2. **Build**: 
+   - Builds Docker image from application source
+   - Tags image with both `latest` and commit hash
+
+3. **Post-build**: 
+   - Pushes Docker images to ECR
+   - Assumes EKS kubectl role for cluster access
+   - Updates Kubernetes configuration
+   - Replaces placeholders in `deploy-k8s.yml`:
+     - `CONTAINER_IMAGE` → Actual ECR image URI
+     - `DB_SECRET_ARN` → RDS Secrets Manager ARN
+   - Deploys updated manifest to EKS cluster
+   - Monitors deployment rollout status
+
+#### Dynamic Configuration Replacement:
+```bash
+# Replace container image placeholder
+sed -i 's|CONTAINER_IMAGE|'$REPOSITORY_URI:$IMAGE_TAG'|g' deploy-k8s.yml
+
+# Replace database secret ARN placeholder
+sed -i 's|DB_SECRET_ARN|'$DB_SECRET_ARN'|g' deploy-k8s.yml
+```
+
+This ensures the Kubernetes deployment uses the correct container image and database credentials for each build.
+
 ## Database Setup
 
 ### Manual Database Loading
@@ -184,14 +226,14 @@ ls -la /tmp/dvdrental.tar
 
 ```bash
 # Set password as environment variable
-export PGPASSWORD='passowrd'
+export PGPASSWORD='6Tctfyp,=i6NbivgKZVc,tPtF79M3E'
 
 # Connect to PostgreSQL and create dvdrental database
 psql -h rdsstack-postgresdatabase0a8a7373-5mk5e7kmnude.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -U postgres -d postgres -c "CREATE DATABASE dvdrental;"
 
 # Restore the sample database from tar file
 pg_restore -h \
-rdsstack-postgresdatabase0a8a7373-dd4yeb7eu9g2.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -p 5432 \
+rdsstack-postgresdatabase0a8a7373-c2j4t6oslcm8.ceviyi5z4s3h.us-east-1.rds.amazonaws.com -p 5432 \
 -U postgres -d dvdrental -v \
 /tmp/dvdrental.tar
 
