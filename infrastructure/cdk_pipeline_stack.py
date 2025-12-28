@@ -93,7 +93,7 @@ class SqlChatbotPipelineStack(Stack):
                     "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value=cluster_name),
                     "EKS_KUBECTL_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=eks_kubectl_role.role_arn),
                     "BEDROCK_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=pod_role_arn),
-                    "DB_SECRET_ARN": codebuild.BuildEnvironmentVariable(value=db_secret_arn)
+                    "DB_SECRET_MANAGER_ARN": codebuild.BuildEnvironmentVariable(value=db_secret_arn)
                 }
             ),
             build_spec=codebuild.BuildSpec.from_source_filename("buildspec.yml"),

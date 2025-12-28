@@ -4,7 +4,7 @@ metadata:
   name: sql-chatbot-config
 data:
   AWS_REGION: "us-east-1"
-  DB_SECRET_ARN: DB_SECRET_ARN 
+  DB_SECRET_ARN: DB_SECRET_MANAGER_ARN 
 ---
 apiVersion: v1
 kind: Service
