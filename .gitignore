@@ -2,3 +2,4 @@ env2
 .env.local
 cdk.out
 **/__pycache__/
+.idea

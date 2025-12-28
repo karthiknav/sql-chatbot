@@ -83,13 +83,28 @@ LANGCHAIN_API_KEY=your_langchain_api_key
 - AWS CDK installed (`npm install -g aws-cdk`)
 - Python 3.8+ and pip installed
 
-### CDK Deployment Steps
+### Cloud Deployment
 
-Deploy the infrastructure stacks in the following order:
+#### Quick Deploy All Stacks
+```bash
+cdk deploy --all
+```
+Deploys all infrastructure stacks with proper dependency management.
+
+#### Destroy All Stacks
+```bash
+cdk destroy --all
+```
+Removes all infrastructure resources in reverse dependency order.
+
+**Note**: The `app.py` file automatically handles stack dependencies, ensuring VPC is created first, followed by RDS and EKS (which depend on VPC), and finally the Pipeline stack. This eliminates the need to deploy stacks individually in a specific order.
+
+### Individual Stack Deployment (Optional)
+
+If you prefer to deploy stacks individually:
 
 #### 1. VPC Stack (First)
 ```bash
-cd infrastructure
 cdk deploy VpcStack
 ```
 Creates the network foundation with public and private subnets.
@@ -206,6 +221,40 @@ aws eks update-kubeconfig --region us-east-1 --name eks-cdk-sqlchatbot --role-ar
 
 ### Common kubectl Commands
 
+### Health Checks and Monitoring
+
+#### Check Application Pod Health
+```bash
+# Check SQL Chatbot application pods
+kubectl get pods -l app=sql-chatbot
+
+# View detailed pod status and events
+kubectl describe pods -l app=sql-chatbot
+
+# Check pod logs for troubleshooting
+kubectl logs -l app=sql-chatbot -f
+```
+
+#### Check ALB Controller Health
+```bash
+# Verify AWS Load Balancer Controller is running
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+
+# Check ALB controller logs
+kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+
+# View ALB ingress status
+kubectl get ingress -n default
+```
+
+#### Get Application Load Balancer URL
+```bash
+# Get the ALB URL for accessing the SQL Chatbot application
+kubectl get ingress sql-chatbot-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+```
+
+**Access the Application**: Once deployed, access the SQL Chatbot at the ALB URL returned by the above command.
+
 ### Common kubectl Commands
 
 ```bash
@@ -227,7 +276,7 @@ kubectl describe pod <pod-name> -n default
 # View services and ingress
 kubectl get svc,ingress -n default
 
-# print environment variables of pod
+# Print environment variables of pod
 kubectl exec <podname> -- printenv
 ```
 

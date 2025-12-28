@@ -3,7 +3,8 @@ from aws_cdk import (
     aws_eks as eks,
     aws_ec2 as ec2,
     aws_iam as iam,
-    CfnOutput
+    CfnOutput,
+    Fn
 )
 from constructs import Construct
 from aws_cdk.lambda_layer_kubectl_v34 import KubectlV34Layer
@@ -15,8 +16,14 @@ class EksStack(Stack):
         
         # Use the passed VPC object directly
         self.vpc = vpc
-        existing_role_arn = "arn:aws:iam::206409480438:role/EKSKubectlRole"
-        eks_kubectl_role = iam.Role.from_role_arn(self, "EksKubeCtlRole", existing_role_arn)
+        
+        # Import EKS Kubectl Role from IAM stack
+        eks_kubectl_role_arn = Fn.import_value("SqlChatbot-EKSKubectlRoleArn")
+        eks_kubectl_role = iam.Role.from_role_arn(self, "EksKubeCtlRole", eks_kubectl_role_arn)
+        
+        # Import Bedrock Policy from IAM stack
+        pod_policy_arn = Fn.import_value("SqlChatbot-PodPolicyArn")
+        pod_policy = iam.ManagedPolicy.from_managed_policy_arn(self, "BedrockPolicy", bedrock_policy_arn)
         
         # Create EKS cluster in private subnets
         self.cluster = eks.Cluster(
@@ -53,24 +60,14 @@ class EksStack(Stack):
             namespace="default"
         )
         
-        # Add Bedrock permissions to service account
-        pod_service_account.role.add_to_principal_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream",
-                    "secretsmanager:*"
-                ],
-                resources=["*"],
-                effect=iam.Effect.ALLOW
-            )
-        )
+        # Attach the imported Bedrock policy to service account
+        pod_service_account.role.add_managed_policy(pod_policy)
         
         # Export service account role ARN
         CfnOutput(
-            self, "BedrockServiceAccountRoleArn",
+            self, "PodServiceAccountRoleArn",
             value=pod_service_account.role.role_arn,
-            export_name="SqlChatbot-BedrockServiceAccountRoleArn"
+            export_name="SqlChatbot-PodServiceAccountRoleArn"
         )
     
         

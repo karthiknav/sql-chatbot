@@ -32,6 +32,7 @@ phases:
       - aws eks describe-cluster --name $EKS_CLUSTER_NAME --region $AWS_REGION
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
       - sed -i 's|CONTAINER_IMAGE|'$REPOSITORY_URI:$IMAGE_TAG'|g' deploy-k8s.yml
+      - sed -i 's|DB_SECRET_ARN|'$DB_SECRET_ARN'|g' deploy-k8s.yml
       - kubectl apply -f deploy-k8s.yml
       - echo "Waiting for deployment rollout to complete..."
       - kubectl rollout status deployment/sql-chatbot --timeout=180s

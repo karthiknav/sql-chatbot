@@ -15,12 +15,16 @@ class SqlChatbotPipelineStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
-        existing_role_arn = "arn:aws:iam::206409480438:role/EKSKubectlRole"
-        eks_kubectl_role = iam.Role.from_role_arn(self, "EksKubeCtlRole", existing_role_arn)
+        # Import EKS Kubectl Role from IAM stack
+        eks_kubectl_role_arn = Fn.import_value("SqlChatbot-EKSKubectlRoleArn")
+        eks_kubectl_role = iam.Role.from_role_arn(self, "EksKubeCtlRoleCiCd", eks_kubectl_role_arn)
         
         # Import cluster name and service account role from EKS stack
         cluster_name = Fn.import_value("SqlChatbot-ClusterName")
-        bedrock_role_arn = Fn.import_value("SqlChatbot-BedrockServiceAccountRoleArn")
+        pod_role_arn = Fn.import_value("SqlChatbot-PodServiceAccountRoleArn")
+        
+        # Import DB secret ARN from RDS stack
+        db_secret_arn = Fn.import_value("SqlChatbot-DatabaseSecretArn")
         
         codebuild_role = iam.Role(
             self, "CodeBuildRole",
@@ -64,10 +68,17 @@ class SqlChatbotPipelineStack(Stack):
         
         source_artifact = underlying_pipeline.stages[0].actions[0].action_properties.outputs[0]
         
-        ecr_repo = ecr.Repository(
-            self, "SqlChatbotRepository",
-            repository_name="sqlchatbot"
-        )
+        # Try to use existing ECR repository or create new one
+        try:
+            ecr_repo = ecr.Repository.from_repository_name(
+                self, "SqlChatbotRepository",
+                repository_name="sqlchatbot"
+            )
+        except:
+            ecr_repo = ecr.Repository(
+                self, "SqlChatbotRepository",
+                repository_name="sqlchatbot"
+            )
         
         build_project = codebuild.PipelineProject(
             self, "Project",
@@ -81,7 +92,8 @@ class SqlChatbotPipelineStack(Stack):
                     "AWS_REGION": codebuild.BuildEnvironmentVariable(value=self.region),
                     "EKS_CLUSTER_NAME": codebuild.BuildEnvironmentVariable(value=cluster_name),
                     "EKS_KUBECTL_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=eks_kubectl_role.role_arn),
-                    "BEDROCK_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=bedrock_role_arn)
+                    "BEDROCK_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=pod_role_arn),
+                    "DB_SECRET_ARN": codebuild.BuildEnvironmentVariable(value=db_secret_arn)
                 }
             ),
             build_spec=codebuild.BuildSpec.from_source_filename("buildspec.yml"),
