@@ -23,7 +23,7 @@ class EksStack(Stack):
         
         # Import Bedrock Policy from IAM stack
         pod_policy_arn = Fn.import_value("SqlChatbot-PodPolicyArn")
-        pod_policy = iam.ManagedPolicy.from_managed_policy_arn(self, "BedrockPolicy", bedrock_policy_arn)
+        pod_policy = iam.ManagedPolicy.from_managed_policy_arn(self, "BedrockPolicy", pod_policy_arn)
         
         # Create EKS cluster in private subnets
         self.cluster = eks.Cluster(

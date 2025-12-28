@@ -87,15 +87,15 @@ LANGCHAIN_API_KEY=your_langchain_api_key
 
 #### Quick Deploy All Stacks
 ```bash
-cdk deploy --all
+cdk deploy --all --require-approval never
 ```
-Deploys all infrastructure stacks with proper dependency management.
+Deploys all infrastructure stacks with proper dependency management and automatically approves all changes.
 
 #### Destroy All Stacks
 ```bash
-cdk destroy --all
+cdk destroy --all --force
 ```
-Removes all infrastructure resources in reverse dependency order.
+Removes all infrastructure resources in reverse dependency order without confirmation prompts.
 
 **Note**: The `app.py` file automatically handles stack dependencies, ensuring VPC is created first, followed by RDS and EKS (which depend on VPC), and finally the Pipeline stack. This eliminates the need to deploy stacks individually in a specific order.
 
